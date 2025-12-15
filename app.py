@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import re
+import os
 
 st.set_page_config(page_title="JollyJupiter 分析平台", layout="wide")
 st.title("JollyJupiter 分析平台")
@@ -80,10 +81,21 @@ def parent_vocab_template(df):
     # 只在這個模板做去重
     result = result.drop_duplicates(subset=['學生編號', '學生姓名', '學校', '年級', '家長電郵'])
     return result
+
+def read_excel_auto_engine(uploaded_file, **kwargs):
+    # Detect file extension and use the correct engine
+    import os
+    filename = uploaded_file.name
+    ext = os.path.splitext(filename)[-1].lower()
+    if ext == ".xls":
+        return pd.read_excel(uploaded_file, engine="xlrd", **kwargs)
+    else:
+        return pd.read_excel(uploaded_file, engine="openpyxl", **kwargs)
+
 if uploaded_file:
     # 嘗試抓月份資訊，若沒有也不影響新模板
     try:
-        info = pd.read_excel(uploaded_file, header=None, nrows=10)
+        info = read_excel_auto_engine(uploaded_file, header=None, nrows=10)
         period_str = info.iloc[3, 2]
         if pd.isna(period_str):
             period_str = info.iloc[3, 1]
@@ -91,7 +103,11 @@ if uploaded_file:
     except Exception:
         month = ""
     # 主要資料
-    df = pd.read_excel(uploaded_file, header=5)
+    try:
+        df = read_excel_auto_engine(uploaded_file, header=5)
+    except Exception as e:
+        st.error(f"讀取 Excel 檔案時發生錯誤：{e}")
+        st.stop()
     df = fix_column_names(df)
 
     # Dashboard summary
